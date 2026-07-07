@@ -8,7 +8,8 @@ let activeFilters = {
   search: '',
   country: '',
   sector: '',
-  attribute: ''
+  attribute: '',
+  publisher: ''
 };
 
 // DOM Elements
@@ -22,6 +23,7 @@ const searchInput = document.getElementById('search-input');
 const filterCountry = document.getElementById('filter-country');
 const filterSector = document.getElementById('filter-sector');
 const filterAttribute = document.getElementById('filter-attribute');
+const filterPublisher = document.getElementById('filter-publisher');
 const activeFiltersContainer = document.getElementById('active-filters-container');
 
 const statTotal = document.getElementById('stat-total');
@@ -66,6 +68,11 @@ function setupEventListeners() {
 
   filterAttribute.addEventListener('change', (e) => {
     activeFilters.attribute = e.target.value;
+    applyFilters();
+  });
+
+  filterPublisher.addEventListener('change', (e) => {
+    activeFilters.publisher = e.target.value;
     applyFilters();
   });
 
@@ -124,7 +131,6 @@ function fetchData() {
   // Create JSONP script tag
   const script = document.createElement('script');
   script.id = 'gviz-jsonp-script';
-  // responseHandler parameter tells Google Sheets query engine to wrap JSON inside handleGoogleData() call
   script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:handleGoogleData`;
   
   // Catch network or sharing configuration errors
@@ -163,10 +169,11 @@ function processRawData(rows) {
       date: getVal(2),
       sector: getVal(3),
       attribute: getVal(4),
-      description: getVal(5),
-      metalRelation: getVal(6),
-      emergingRelation: getVal(7),
-      sourceUrl: getVal(8)
+      publisher: getVal(5),            // index 5: 發布機構
+      description: getVal(6),          // index 6: 內容說明
+      metalRelation: getVal(7),        // index 7: 與金屬材料/製程關聯內容
+      emergingRelation: getVal(8),     // index 8: 其他新興材料應用內容
+      sourceUrl: getVal(9)             // index 9: 資料來源/連結
     };
   }).filter(item => item && item.name); // Keep items that have names
 }
@@ -176,10 +183,12 @@ function populateDropdowns() {
   const countries = new Set();
   const sectors = new Set();
   const attributes = new Set();
+  const publishers = new Set();
 
   rawItems.forEach(item => {
     if (item.country) countries.add(item.country);
     if (item.attribute) attributes.add(item.attribute);
+    if (item.publisher) publishers.add(item.publisher);
     if (item.sector) {
       // sector field can be a comma-separated list
       item.sector.split(',').forEach(s => {
@@ -215,6 +224,15 @@ function populateDropdowns() {
     opt.textContent = attr;
     filterAttribute.appendChild(opt);
   });
+
+  // Publisher Dropdown
+  filterPublisher.innerHTML = '<option value="">全部機構</option>';
+  Array.from(publishers).sort().forEach(pub => {
+    const opt = document.createElement('option');
+    opt.value = pub;
+    opt.textContent = pub;
+    filterPublisher.appendChild(opt);
+  });
 }
 
 // Apply Search & Filters to State
@@ -222,12 +240,13 @@ function applyFilters() {
   const searchQuery = activeFilters.search.toLowerCase().trim();
 
   filteredItems = rawItems.filter(item => {
-    // Search query matches in name, description, metal, and emerging fields
+    // Search query matches in name, description, metal, emerging, and publisher fields
     const matchesSearch = !searchQuery ||
       item.name.toLowerCase().includes(searchQuery) ||
       item.description.toLowerCase().includes(searchQuery) ||
       item.metalRelation.toLowerCase().includes(searchQuery) ||
-      item.emergingRelation.toLowerCase().includes(searchQuery);
+      item.emergingRelation.toLowerCase().includes(searchQuery) ||
+      item.publisher.toLowerCase().includes(searchQuery);
 
     const matchesCountry = !activeFilters.country || item.country === activeFilters.country;
     
@@ -236,8 +255,9 @@ function applyFilters() {
     const matchesSector = !activeFilters.sector || itemSectors.includes(activeFilters.sector);
     
     const matchesAttribute = !activeFilters.attribute || item.attribute === activeFilters.attribute;
+    const matchesPublisher = !activeFilters.publisher || item.publisher === activeFilters.publisher;
 
-    return matchesSearch && matchesCountry && matchesSector && matchesAttribute;
+    return matchesSearch && matchesCountry && matchesSector && matchesAttribute && matchesPublisher;
   });
 
   renderActiveTags();
@@ -274,6 +294,9 @@ function renderActiveTags() {
   if (activeFilters.attribute) {
     addTag('attribute', activeFilters.attribute, '屬性');
   }
+  if (activeFilters.publisher) {
+    addTag('publisher', activeFilters.publisher, '機構');
+  }
 }
 
 // Remove single filter tag
@@ -290,6 +313,9 @@ function removeFilter(type) {
   } else if (type === 'attribute') {
     filterAttribute.value = '';
     activeFilters.attribute = '';
+  } else if (type === 'publisher') {
+    filterPublisher.value = '';
+    activeFilters.publisher = '';
   }
   applyFilters();
 }
@@ -300,12 +326,14 @@ function resetFilters() {
   filterCountry.value = '';
   filterSector.value = '';
   filterAttribute.value = '';
+  filterPublisher.value = '';
 
   activeFilters = {
     search: '',
     country: '',
     sector: '',
-    attribute: ''
+    attribute: '',
+    publisher: ''
   };
 
   applyFilters();
@@ -365,6 +393,7 @@ function renderGrid() {
         <div class="card-tags">
           <span class="badge badge-country">${item.country}</span>
           ${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : ''}
+          ${item.publisher ? `<span class="badge badge-publisher" style="background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">${item.publisher}</span>` : ''}
           ${sectorTagsHTML}
         </div>
         <span class="card-date">${item.date || '無日期'}</span>
@@ -393,6 +422,7 @@ function openModal(item) {
   const modalTitle = document.getElementById('modal-title');
   const modalDate = document.getElementById('modal-date');
   const modalCountry = document.getElementById('modal-country');
+  const modalPublisher = document.getElementById('modal-publisher');
   
   const modalDesc = document.getElementById('modal-desc');
   const modalMetal = document.getElementById('modal-metal');
@@ -403,11 +433,13 @@ function openModal(item) {
   modalTitle.textContent = item.name;
   modalDate.textContent = item.date || '無';
   modalCountry.textContent = item.country || '無';
+  modalPublisher.textContent = item.publisher || '無';
 
   // Render Tags
   modalTags.innerHTML = `
     <span class="badge badge-country">${item.country}</span>
     ${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : ''}
+    ${item.publisher ? `<span class="badge badge-publisher" style="background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">${item.publisher}</span>` : ''}
   `;
   item.sector.split(',').forEach(s => {
     const trimmed = s.trim();
@@ -460,7 +492,7 @@ function handleExport() {
     return;
   }
 
-  const headers = ['國家', '政策/技術之名稱', '出版日期', '領域別', '屬性', '內容說明', '與金屬材料/製程關聯內容', '其他新興材料應用內容', '資料來源/連結'];
+  const headers = ['國家', '政策/技術之名稱', '出版日期', '領域別', '屬性', '發布機構', '內容說明', '與金屬材料/製程關聯內容', '其他新興材料應用內容', '資料來源/連結'];
   let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel compliance
 
   // Header row
@@ -474,6 +506,7 @@ function handleExport() {
       item.date,
       item.sector,
       item.attribute,
+      item.publisher,
       item.description,
       item.metalRelation,
       item.emergingRelation,
