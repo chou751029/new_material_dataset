@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>各國政策與技術盤點資料庫 - 創前計畫</title>
+  <meta name="description" content="創前計畫 - 各國政策與技術盤點資料庫，收錄並分析各國政策與金屬、非金屬等材料與製程關聯之最新技術發展。">
+  
+  <!-- Google Fonts: Inter & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Gradients -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- App Wrapper -->
+  <div class="app-wrapper">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="brand">
+          <span class="brand-emoji">🌐</span>
+          <div>
+            <h1>各國政策與技術盤點資料庫</h1>
+            <p class="subtitle">創前計畫 • 整合產業政策、經濟安全與材料技術轉型趨勢</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="btn-export" class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>匯出 CSV 資料</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      
+      <!-- Stats Dashboard -->
+      <section class="stats-container">
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <span class="stat-label">總收錄項目</span>
+            <span class="stat-value" id="stat-total">--</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏳️</div>
+          <div class="stat-info">
+            <span class="stat-label">涵蓋國家/地區</span>
+            <span class="stat-value" id="stat-countries">--</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-info">
+            <span class="stat-label">關注領域別</span>
+            <span class="stat-value" id="stat-sectors">--</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🕒</div>
+          <div class="stat-info">
+            <span class="stat-label">資料自動更新</span>
+            <span class="stat-value" id="stat-update-time">即時</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search & Filters Panel -->
+      <section class="filters-panel card-glass">
+        <div class="search-row">
+          <div class="search-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="搜尋政策、技術名稱、關聯材料或內容關鍵字..." autocomplete="off">
+          </div>
+          <button id="btn-reset" class="btn btn-secondary">重設篩選</button>
+        </div>
+        
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="filter-country">國家</label>
+            <select id="filter-country">
+              <option value="">全部國家</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label for="filter-sector">領域別</label>
+            <select id="filter-sector">
+              <option value="">全部領域</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label for="filter-attribute">屬性</label>
+            <select id="filter-attribute">
+              <option value="">全部屬性</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="active-filters" id="active-filters-container">
+          <!-- Active filter tags will be inserted here -->
+        </div>
+      </section>
+
+      <!-- Content Listing -->
+      <section class="content-section">
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-indicator">
+          <div class="spinner"></div>
+          <p>正在載入 Google 試算表最新數據，請稍候...</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-state hidden" id="error-container">
+          <span class="error-icon">⚠️</span>
+          <h3>資料讀取失敗</h3>
+          <p id="error-message">請確認您的網路連線，或確保 Google 試算表已開啟公開檢視權限。</p>
+          <button id="btn-retry" class="btn btn-primary mt-3">重新嘗試</button>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state hidden" id="empty-container">
+          <span class="empty-icon">🔍</span>
+          <h3>沒有找到符合條件的政策或技術</h3>
+          <p>請嘗試調整您的關鍵字或篩選器。</p>
+        </div>
+
+        <!-- Data Grid -->
+        <div class="data-grid hidden" id="data-grid">
+          <!-- Dynamically generated cards will go here -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>© 2026 創前計畫. 資料即時同步自 Google Sheets.</p>
+    </footer>
+
+  </div>
+
+  <!-- Detail Dialog (Native Modal) -->
+  <dialog id="detail-modal" class="detail-dialog">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div class="dialog-title-area">
+          <div class="tags-row" id="modal-tags">
+            <!-- Tags dynamically populated -->
+          </div>
+          <h2 id="modal-title">政策名稱載入中...</h2>
+          <div class="meta-row">
+            <span>📅 出版日期：<strong id="modal-date">--</strong></span>
+            <span>📍 國家：<strong id="modal-country">--</strong></span>
+          </div>
+        </div>
+        <button id="btn-close-modal" class="btn-close" aria-label="關閉視窗">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+
+      <div class="dialog-body">
+        <!-- Section 1: Content Description -->
+        <div class="detail-section">
+          <h3>
+            <span class="section-icon">📑</span>
+            內容說明
+          </h3>
+          <div class="section-content" id="modal-desc">
+            <!-- Description -->
+          </div>
+        </div>
+
+        <!-- Section 2: Metal Materials Connection -->
+        <div class="detail-section highlight-blue">
+          <h3>
+            <span class="section-icon">🔩</span>
+            與金屬材料 / 製程關聯內容
+          </h3>
+          <div class="section-content" id="modal-metal">
+            <!-- Metal context -->
+          </div>
+        </div>
+
+        <!-- Section 3: Emerging Materials -->
+        <div class="detail-section highlight-purple">
+          <h3>
+            <span class="section-icon">🧪</span>
+            其他新興材料應用內容
+          </h3>
+          <div class="section-content" id="modal-emerging">
+            <!-- Other materials context -->
+          </div>
+        </div>
+
+        <!-- Section 4: Source URL -->
+        <div class="detail-section source-section">
+          <div class="source-link-box">
+            <span>🔗 原始資料來源：</span>
+            <a href="#" id="modal-source" target="_blank" rel="noopener noreferrer">開啟連結</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
