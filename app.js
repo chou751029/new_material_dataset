@@ -12,13 +12,33 @@ let activeFilters = {
   publisher: ''
 };
 
+// Current Active View ('gallery' | 'list' | 'analytics')
+let currentView = 'gallery';
+
+// Flags for dynamic loading of both Sheets (Tabs)
+let masterLoaded = false;
+let detailsLoaded = false;
+let rawMasterRows = [];
+let rawDetailRows = [];
+
+// Chart.js Instances
+let chartTechInstance = null;
+let chartCountriesInstance = null;
+let chartSectorsInstance = null;
+
 // DOM Elements
 const loadingIndicator = document.getElementById('loading-indicator');
 const errorContainer = document.getElementById('error-container');
 const errorMessage = document.getElementById('error-message');
 const emptyContainer = document.getElementById('empty-container');
-const dataGrid = document.getElementById('data-grid');
 
+// View Containers
+const dataGrid = document.getElementById('data-grid');
+const listView = document.getElementById('list-view');
+const tableBody = document.getElementById('table-body');
+const analyticsView = document.getElementById('analytics-view');
+
+// Filter Inputs
 const searchInput = document.getElementById('search-input');
 const filterCountry = document.getElementById('filter-country');
 const filterSector = document.getElementById('filter-sector');
@@ -30,6 +50,7 @@ const statTotal = document.getElementById('stat-total');
 const statCountries = document.getElementById('stat-countries');
 const statSectors = document.getElementById('stat-sectors');
 
+// Buttons
 const btnReset = document.getElementById('btn-reset');
 const btnRetry = document.getElementById('btn-retry');
 const btnExport = document.getElementById('btn-export');
@@ -41,6 +62,7 @@ const btnCloseModal = document.getElementById('btn-close-modal');
 document.addEventListener('DOMContentLoaded', () => {
   fetchData();
   setupEventListeners();
+  setupViewSwitcher();
 });
 
 // Setup Event Listeners
@@ -100,82 +122,205 @@ function setupEventListeners() {
   });
 }
 
-// Global Callback for Google Visualization API JSONP
-window.handleGoogleData = function(response) {
+// Setup View Switcher Tabs
+function setupViewSwitcher() {
+  const tabs = document.querySelectorAll('.view-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      
+      currentView = tab.dataset.view;
+      switchView();
+    });
+  });
+}
+
+// Switch display of active view container
+function switchView() {
+  // Hide all views first
+  dataGrid.classList.add('hidden');
+  listView.classList.add('hidden');
+  analyticsView.classList.add('hidden');
+
+  if (filteredItems.length === 0) {
+    emptyContainer.classList.remove('hidden');
+    return;
+  }
+  emptyContainer.classList.add('hidden');
+
+  // Show active view
+  if (currentView === 'gallery') {
+    dataGrid.classList.remove('hidden');
+    renderGrid();
+  } else if (currentView === 'list') {
+    listView.classList.remove('hidden');
+    renderList();
+  } else if (currentView === 'analytics') {
+    analyticsView.classList.remove('hidden');
+    renderCharts();
+  }
+}
+
+// Global Callback for Tab 2: 政策內容總述 (gid=905656920)
+window.handleGoogleDataMaster = function(response) {
   try {
     if (!response || response.status !== 'ok') {
       const errReason = response && response.errors && response.errors[0] ? response.errors[0].detailed_message : '未知錯誤';
       throw new Error(errReason);
     }
+    rawMasterRows = response.table.rows || [];
+    masterLoaded = true;
+    checkAndProcess();
+  } catch (error) {
+    console.error('Processing Master Sheet failed:', error);
+    showError('讀取「政策內容總述」失敗：' + error.message);
+  }
+};
 
-    const table = response.table;
-    if (!table || !table.rows || table.rows.length === 0) {
-      throw new Error('試算表中沒有找到任何政策或技術資料。');
+// Global Callback for Tab 1: 各國新興技術與材料應用盤點 (gid=0)
+window.handleGoogleDataDetails = function(response) {
+  try {
+    if (!response || response.status !== 'ok') {
+      const errReason = response && response.errors && response.errors[0] ? response.errors[0].detailed_message : '未知錯誤';
+      throw new Error(errReason);
     }
+    rawDetailRows = response.table.rows || [];
+    detailsLoaded = true;
+    checkAndProcess();
+  } catch (error) {
+    console.error('Processing Details Sheet failed:', error);
+    showError('讀取「新興技術與材料盤點」失敗：' + error.message);
+  }
+};
 
-    processRawData(table.rows);
+// Check if both sheets are loaded, then combine and display
+function checkAndProcess() {
+  if (masterLoaded && detailsLoaded) {
+    combineData();
     populateDropdowns();
     updateStats();
     applyFilters();
     showData();
-  } catch (error) {
-    console.error('Processing Google Data failed:', error);
-    showError(error.message);
   }
-};
+}
 
 // Fetch Data from Google Sheets using JSONP (bypasses CORS in file:// and local hosts)
 function fetchData() {
   showLoading();
   
-  // Create JSONP script tag
-  const script = document.createElement('script');
-  script.id = 'gviz-jsonp-script';
-  script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:handleGoogleData`;
-  
-  // Catch network or sharing configuration errors
-  script.onerror = () => {
-    showError('無法載入 Google 試算表，請檢查您的網路連線，並確認試算表已開啟「知道連結的任何人均可檢視」分享設定。');
+  masterLoaded = false;
+  detailsLoaded = false;
+  rawMasterRows = [];
+  rawDetailRows = [];
+
+  // 1. Script for Master Sheet (gid=905656920)
+  const scriptMaster = document.createElement('script');
+  scriptMaster.id = 'gviz-master-script';
+  scriptMaster.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:handleGoogleDataMaster&gid=905656920`;
+  scriptMaster.onerror = () => {
+    showError('無法載入「政策內容總述」資料，請確認網路連線與試算表分享設定。');
   };
 
-  // Clean up any old script tag
-  const oldScript = document.getElementById('gviz-jsonp-script');
-  if (oldScript) {
-    oldScript.remove();
-  }
+  // 2. Script for Details Sheet (gid=0)
+  const scriptDetails = document.createElement('script');
+  scriptDetails.id = 'gviz-details-script';
+  scriptDetails.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:handleGoogleDataDetails&gid=0`;
+  scriptDetails.onerror = () => {
+    showError('無法載入「各國新興技術與材料應用盤點」資料，請確認網路連線與試算表分享設定。');
+  };
 
-  document.body.appendChild(script);
+  // Clean up any old script tags
+  const oldMaster = document.getElementById('gviz-master-script');
+  if (oldMaster) oldMaster.remove();
+  const oldDetails = document.getElementById('gviz-details-script');
+  if (oldDetails) oldDetails.remove();
+
+  document.body.appendChild(scriptMaster);
+  document.body.appendChild(scriptDetails);
 }
 
-// Process rows from Google Visualization JSON format into objects
-function processRawData(rows) {
-  rawItems = rows.map((row, index) => {
+// Helper to get formatted string 'f' first, fallback to raw value 'v'
+const getCellVal = (c, idx) => {
+  if (!c) return '';
+  const cell = c[idx];
+  if (!cell) return '';
+  if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
+  if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
+  return '';
+};
+
+// Process rows from both tabs and combine them relationally
+function combineData() {
+  // 1. Map details (Tab 1: gid=0) by key: "國家|||政策/技術之名稱"
+  const detailsMap = {};
+  rawDetailRows.forEach(row => {
+    const c = row.c;
+    if (!c) return;
+
+    const country = getCellVal(c, 0);
+    const name = getCellVal(c, 1);
+    if (!name) return;
+
+    const key = `${country}|||${name}`;
+    if (!detailsMap[key]) {
+      detailsMap[key] = {
+        sectors: new Set(),
+        materials: new Set(),
+        materialNames: new Set()
+      };
+    }
+
+    const sector = getCellVal(c, 3);
+    const materialType = getCellVal(c, 6);
+    const materialName = getCellVal(c, 7);
+
+    if (sector) detailsMap[key].sectors.add(sector);
+    if (materialType) detailsMap[key].materials.add(materialType);
+    if (materialName) detailsMap[key].materialNames.add(materialName);
+  });
+
+  // 2. Map and enrich Master items (Tab 2: gid=905656920)
+  rawItems = rawMasterRows.map((row, index) => {
     const c = row.c;
     if (!c) return null;
 
-    // Helper to get formatted string 'f' first, fallback to raw value 'v'
-    const getVal = (idx) => {
-      const cell = c[idx];
-      if (!cell) return '';
-      if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
-      if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
-      return '';
+    const country = getCellVal(c, 0);
+    const name = getCellVal(c, 1);
+    if (!name) return null;
+
+    const date = getCellVal(c, 2);
+    const attribute = getCellVal(c, 3);
+    const publisher = getCellVal(c, 4);
+    const description = getCellVal(c, 5);
+    const details = getCellVal(c, 6); // "其他細節資訊"
+    const sourceUrl = getCellVal(c, 7);
+
+    // Retrieve joined details
+    const key = `${country}|||${name}`;
+    const policyDetails = detailsMap[key] || {
+      sectors: new Set(),
+      materials: new Set(),
+      materialNames: new Set()
     };
 
     return {
       id: index,
-      country: getVal(0),
-      name: getVal(1),
-      date: getVal(2),
-      sector: getVal(3),
-      attribute: getVal(4),
-      publisher: getVal(5),            // index 5: 發布機構
-      description: getVal(6),          // index 6: 內容說明
-      metalRelation: getVal(7),        // index 7: 與金屬材料/製程關聯內容
-      emergingRelation: getVal(8),     // index 8: 其他新興材料應用內容
-      sourceUrl: getVal(9)             // index 9: 資料來源/連結
+      country,
+      name,
+      date,
+      attribute,
+      publisher,
+      description,
+      details,
+      sourceUrl,
+      // Relational arrays
+      sectors: Array.from(policyDetails.sectors),
+      sectorString: Array.from(policyDetails.sectors).join(', '),
+      materials: Array.from(policyDetails.materials),
+      materialNames: Array.from(policyDetails.materialNames)
     };
-  }).filter(item => item && item.name); // Keep items that have names
+  }).filter(item => item !== null);
 }
 
 // Populate Filter Dropdowns dynamically based on data
@@ -189,13 +334,10 @@ function populateDropdowns() {
     if (item.country) countries.add(item.country);
     if (item.attribute) attributes.add(item.attribute);
     if (item.publisher) publishers.add(item.publisher);
-    if (item.sector) {
-      // sector field can be a comma-separated list
-      item.sector.split(',').forEach(s => {
-        const trimmed = s.trim();
-        if (trimmed) sectors.add(trimmed);
-      });
-    }
+    item.sectors.forEach(s => {
+      const trimmed = s.trim();
+      if (trimmed) sectors.add(trimmed);
+    });
   });
 
   // Country Dropdown
@@ -240,20 +382,17 @@ function applyFilters() {
   const searchQuery = activeFilters.search.toLowerCase().trim();
 
   filteredItems = rawItems.filter(item => {
-    // Search query matches in name, description, metal, emerging, and publisher fields
+    // Search query matches in name, description, details, publisher, sectors, and material names
     const matchesSearch = !searchQuery ||
       item.name.toLowerCase().includes(searchQuery) ||
       item.description.toLowerCase().includes(searchQuery) ||
-      item.metalRelation.toLowerCase().includes(searchQuery) ||
-      item.emergingRelation.toLowerCase().includes(searchQuery) ||
-      item.publisher.toLowerCase().includes(searchQuery);
+      item.details.toLowerCase().includes(searchQuery) ||
+      item.publisher.toLowerCase().includes(searchQuery) ||
+      item.sectorString.toLowerCase().includes(searchQuery) ||
+      item.materialNames.join(' ').toLowerCase().includes(searchQuery);
 
     const matchesCountry = !activeFilters.country || item.country === activeFilters.country;
-    
-    // Sector matches if selected is one of the sub-sectors
-    const itemSectors = item.sector.split(',').map(s => s.trim());
-    const matchesSector = !activeFilters.sector || itemSectors.includes(activeFilters.sector);
-    
+    const matchesSector = !activeFilters.sector || item.sectors.includes(activeFilters.sector);
     const matchesAttribute = !activeFilters.attribute || item.attribute === activeFilters.attribute;
     const matchesPublisher = !activeFilters.publisher || item.publisher === activeFilters.publisher;
 
@@ -261,8 +400,8 @@ function applyFilters() {
   });
 
   renderActiveTags();
-  renderGrid();
   updateStats();
+  switchView(); // Refresh the current view
 }
 
 // Render Active Filter Tags below inputs
@@ -341,18 +480,15 @@ function resetFilters() {
 
 // Update Stats Dashboard numbers
 function updateStats() {
-  // Compute unique values in current filtered dataset
   const uniqueCountries = new Set();
   const uniqueSectors = new Set();
 
   rawItems.forEach(item => {
     if (item.country) uniqueCountries.add(item.country);
-    if (item.sector) {
-      item.sector.split(',').forEach(s => {
-        const trimmed = s.trim();
-        if (trimmed) uniqueSectors.add(trimmed);
-      });
-    }
+    item.sectors.forEach(s => {
+      const trimmed = s.trim();
+      if (trimmed) uniqueSectors.add(trimmed);
+    });
   });
 
   statTotal.textContent = filteredItems.length;
@@ -360,40 +496,33 @@ function updateStats() {
   statSectors.textContent = uniqueSectors.size;
 }
 
-// Render Card Grid HTML
+// Render Card Grid HTML (Gallery View)
 function renderGrid() {
   dataGrid.innerHTML = '';
-
-  if (filteredItems.length === 0) {
-    emptyContainer.classList.remove('hidden');
-    dataGrid.classList.add('hidden');
-    return;
-  }
-
-  emptyContainer.classList.add('hidden');
-  dataGrid.classList.remove('hidden');
 
   filteredItems.forEach(item => {
     const card = document.createElement('div');
     card.className = 'policy-card';
     card.addEventListener('click', () => openModal(item));
 
-    // Render tags
-    const firstSectors = item.sector.split(',').slice(0, 2).map(s => s.trim());
-    let sectorTagsHTML = firstSectors.map(s => `<span class="badge badge-sector">${s}</span>`).join('');
-    if (item.sector.split(',').length > 2) {
-      sectorTagsHTML += `<span class="badge badge-sector">+${item.sector.split(',').length - 2}</span>`;
+    // Render sector tags (limit to 3, show +X if more)
+    let sectorTagsHTML = item.sectors.slice(0, 3).map(s => `<span class="badge badge-sector">${s}</span>`).join('');
+    if (item.sectors.length > 3) {
+      sectorTagsHTML += `<span class="badge badge-sector">+${item.sectors.length - 3}</span>`;
     }
 
-    const hasMetal = item.metalRelation && item.metalRelation.trim().length > 0;
-    const hasEmerging = item.emergingRelation && item.emergingRelation.trim().length > 0;
+    // Render materials summary
+    const materialSummaryHTML = item.materials.map(m => {
+      const cls = m === '材料' ? 'metal' : 'emerging';
+      return `<span class="material-chip-summary ${cls}">${m === '材料' ? '🔩' : '⚙️'} ${m}</span>`;
+    }).join(' ');
 
     card.innerHTML = `
       <div class="card-header">
         <div class="card-tags">
           <span class="badge badge-country">${item.country}</span>
           ${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : ''}
-          ${item.publisher ? `<span class="badge badge-publisher" style="background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">${item.publisher}</span>` : ''}
+          ${item.publisher ? `<span class="badge badge-publisher">${item.publisher}</span>` : ''}
           ${sectorTagsHTML}
         </div>
         <span class="card-date">${item.date || '無日期'}</span>
@@ -402,8 +531,7 @@ function renderGrid() {
       <p class="card-desc">${item.description || '點擊查看詳細說明'}</p>
       <div class="card-footer">
         <div class="material-icons-summary">
-          ${hasMetal ? '<span class="material-chip-summary metal">🔩 金屬</span>' : ''}
-          ${hasEmerging ? '<span class="material-chip-summary emerging">🧪 新興材料</span>' : ''}
+          ${materialSummaryHTML}
         </div>
         <span class="view-more-link">
           詳細內容
@@ -413,6 +541,165 @@ function renderGrid() {
     `;
 
     dataGrid.appendChild(card);
+  });
+}
+
+// Render Table List (List View)
+function renderList() {
+  tableBody.innerHTML = '';
+
+  filteredItems.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.addEventListener('click', () => openModal(item));
+
+    const sectorsHTML = item.sectors.map(s => `<span class="badge badge-sector" style="margin-right: 2px;">${s}</span>`).join('');
+    
+    tr.innerHTML = `
+      <td><strong>${item.country}</strong></td>
+      <td><strong>${item.name}</strong></td>
+      <td>${item.date || '無'}</td>
+      <td>${sectorsHTML}</td>
+      <td>${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : '—'}</td>
+      <td>${item.publisher ? `<span class="badge badge-publisher">${item.publisher}</span>` : '—'}</td>
+    `;
+    
+    tableBody.appendChild(tr);
+  });
+}
+
+// Render Analytics Charts using Chart.js
+function renderCharts() {
+  // 1. Gather Tech vs Material Counts from Raw inventory rows
+  const activePolicyNames = new Set(filteredItems.map(item => item.name));
+  let countMaterial = 0;
+  let countProcess = 0;
+  
+  rawDetailRows.forEach(row => {
+    const c = row.c;
+    if (!c) return;
+    const policyName = getCellVal(c, 1);
+    if (activePolicyNames.has(policyName)) {
+      const type = getCellVal(c, 6);
+      if (type === '材料') countMaterial++;
+      else if (type === '製程技術') countProcess++;
+    }
+  });
+
+  // 2. Gather Country distribution
+  const countryCounts = {};
+  filteredItems.forEach(item => {
+    countryCounts[item.country] = (countryCounts[item.country] || 0) + 1;
+  });
+
+  // 3. Gather Sector distribution
+  const sectorCounts = {};
+  filteredItems.forEach(item => {
+    item.sectors.forEach(s => {
+      if (s.trim()) {
+        sectorCounts[s] = (sectorCounts[s] || 0) + 1;
+      }
+    });
+  });
+
+  // Destroy old charts to prevent duplicate canvases on filter change
+  if (chartTechInstance) chartTechInstance.destroy();
+  if (chartCountriesInstance) chartCountriesInstance.destroy();
+  if (chartSectorsInstance) chartSectorsInstance.destroy();
+
+  // Color Palette Definitions
+  const colorsBlue = ['#0284c7', '#38bdf8', '#bae6fd'];
+  const colorsMixed = ['#2563eb', '#7c3aed', '#0284c7', '#f59e0b', '#10b981', '#ec4899', '#64748b'];
+
+  // Chart 1: Technology vs Material種類佔比 (Pie Chart)
+  const ctxTech = document.getElementById('chart-tech').getContext('2d');
+  chartTechInstance = new Chart(ctxTech, {
+    type: 'pie',
+    data: {
+      labels: ['材料', '製程技術'],
+      datasets: [{
+        data: [countMaterial, countProcess],
+        backgroundColor: ['#0284c7', '#7c3aed'],
+        borderWidth: 1,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { family: 'Inter, Noto Sans TC', weight: '600' } }
+        }
+      }
+    }
+  });
+
+  // Chart 2: 各國政策數量分佈 (Doughnut Chart)
+  const ctxCountries = document.getElementById('chart-countries').getContext('2d');
+  const countriesLabels = Object.keys(countryCounts);
+  const countriesData = Object.values(countryCounts);
+  
+  chartCountriesInstance = new Chart(ctxCountries, {
+    type: 'doughnut',
+    data: {
+      labels: countriesLabels,
+      datasets: [{
+        data: countriesData,
+        backgroundColor: colorsBlue.slice(0, countriesLabels.length),
+        borderWidth: 1,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { family: 'Inter, Noto Sans TC', weight: '600' } }
+        }
+      }
+    }
+  });
+
+  // Chart 3: 各領域別分佈統計 (Horizontal Bar Chart)
+  const ctxSectors = document.getElementById('chart-sectors').getContext('2d');
+  const sectorsLabels = Object.keys(sectorCounts).sort((a,b) => sectorCounts[b] - sectorCounts[a]);
+  const sectorsData = sectorsLabels.map(s => sectorCounts[s]);
+
+  chartSectorsInstance = new Chart(ctxSectors, {
+    type: 'bar',
+    data: {
+      labels: sectorsLabels,
+      datasets: [{
+        label: '政策與技術數量',
+        data: sectorsData,
+        backgroundColor: colorsMixed.slice(0, sectorsLabels.length),
+        borderRadius: 6,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y', // Makes the bar chart horizontal
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false // Hide default legend
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { precision: 0, font: { family: 'Inter, Noto Sans TC' } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { family: 'Inter, Noto Sans TC', weight: '600' } }
+        }
+      }
+    }
   });
 }
 
@@ -439,28 +726,36 @@ function openModal(item) {
   modalTags.innerHTML = `
     <span class="badge badge-country">${item.country}</span>
     ${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : ''}
-    ${item.publisher ? `<span class="badge badge-publisher" style="background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">${item.publisher}</span>` : ''}
+    ${item.publisher ? `<span class="badge badge-publisher">${item.publisher}</span>` : ''}
   `;
-  item.sector.split(',').forEach(s => {
-    const trimmed = s.trim();
-    if (trimmed) {
-      modalTags.innerHTML += `<span class="badge badge-sector">${trimmed}</span>`;
-    }
+  item.sectors.forEach(s => {
+    modalTags.innerHTML += `<span class="badge badge-sector">${s}</span>`;
   });
 
-  // Details contents (with HTML fallback to display placeholders nicely)
+  // Section 1: Description
   modalDesc.textContent = item.description || '無詳細說明。';
   
-  if (item.metalRelation && item.metalRelation.trim()) {
-    modalMetal.parentElement.classList.remove('hidden');
-    modalMetal.textContent = item.metalRelation;
-  } else {
-    modalMetal.parentElement.classList.add('hidden');
+  // Section 2: Associated Domains & Materials (highlighted blue box)
+  let metalHTML = '';
+  if (item.sectors && item.sectors.length > 0) {
+    metalHTML += `<strong>🎯 關注領域：</strong>${item.sectors.join('、')}<br><br>`;
   }
+  if (item.materials && item.materials.length > 0) {
+    metalHTML += `<strong>🛠 技術屬性：</strong>${item.materials.join('、')}<br>`;
+  }
+  const cleanMaterialNames = item.materialNames.filter(name => name.trim().length > 0);
+  if (cleanMaterialNames.length > 0) {
+    metalHTML += `<br><strong>🧪 具體應用材料/技術名稱：</strong>${cleanMaterialNames.join('、')}<br>`;
+  }
+  if (!metalHTML) {
+    metalHTML = '無關聯領域或材料技術資料。';
+  }
+  modalMetal.innerHTML = metalHTML;
 
-  if (item.emergingRelation && item.emergingRelation.trim()) {
+  // Section 3: Detailed Inventory & Material Trends (highlighted purple box)
+  if (item.details && item.details.trim()) {
     modalEmerging.parentElement.classList.remove('hidden');
-    modalEmerging.textContent = item.emergingRelation;
+    modalEmerging.textContent = item.details;
   } else {
     modalEmerging.parentElement.classList.add('hidden');
   }
@@ -492,7 +787,7 @@ function handleExport() {
     return;
   }
 
-  const headers = ['國家', '政策/技術之名稱', '出版日期', '領域別', '屬性', '發布機構', '內容說明', '與金屬材料/製程關聯內容', '其他新興材料應用內容', '資料來源/連結'];
+  const headers = ['國家', '政策/技術之名稱', '出版日期', '屬性', '發布機構', '領域別', '材料 / 製程技術', '具體應用材料名稱', '內容說明', '詳細盤點與材料趨勢', '資料來源/連結'];
   let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel compliance
 
   // Header row
@@ -504,12 +799,13 @@ function handleExport() {
       item.country,
       item.name,
       item.date,
-      item.sector,
       item.attribute,
       item.publisher,
+      item.sectors.join(', '),
+      item.materials.join(', '),
+      item.materialNames.join(', '),
       item.description,
-      item.metalRelation,
-      item.emergingRelation,
+      item.details,
       item.sourceUrl
     ];
     csvContent += row.map(val => {
@@ -522,7 +818,7 @@ function handleExport() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `各國政策與技術盤點篩選匯出_${new Date().toISOString().slice(0,10)}.csv`);
+  link.setAttribute("download", `各國政策與材料技術彙整匯出_${new Date().toISOString().slice(0,10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -534,6 +830,8 @@ function showLoading() {
   errorContainer.classList.add('hidden');
   emptyContainer.classList.add('hidden');
   dataGrid.classList.add('hidden');
+  listView.classList.add('hidden');
+  analyticsView.classList.add('hidden');
 }
 
 function showError(msg) {
@@ -541,6 +839,8 @@ function showError(msg) {
   errorContainer.classList.remove('hidden');
   emptyContainer.classList.add('hidden');
   dataGrid.classList.add('hidden');
+  listView.classList.add('hidden');
+  analyticsView.classList.add('hidden');
   errorMessage.textContent = `錯誤訊息：${msg}。請確認試算表共用設定已設為「知道連結的任何人均可檢視」，且您的網路連線正常。`;
 }
 

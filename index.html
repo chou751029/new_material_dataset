@@ -11,6 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
   
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <!-- App Stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -122,6 +125,24 @@
         </div>
       </section>
 
+      <!-- View Switcher -->
+      <div class="view-switcher-row">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="gallery">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            <span>圖庫模式</span>
+          </button>
+          <button class="view-tab" data-view="list">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span>列表模式</span>
+          </button>
+          <button class="view-tab" data-view="analytics">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><circle cx="12" cy="12" r="10"/><path d="M12 2v10l8 4"/></svg>
+            <span>數據分析</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Content Listing -->
       <section class="content-section">
         <!-- Loading State -->
@@ -145,9 +166,54 @@
           <p>請嘗試調整您的關鍵字或篩選器。</p>
         </div>
 
-        <!-- Data Grid -->
+        <!-- Data Grid (Gallery Mode) -->
         <div class="data-grid hidden" id="data-grid">
           <!-- Dynamically generated cards will go here -->
+        </div>
+
+        <!-- List View (Table Mode) -->
+        <div class="list-view-container hidden" id="list-view">
+          <div class="table-wrapper">
+            <table class="policy-table">
+              <thead>
+                <tr>
+                  <th>國家</th>
+                  <th>政策/技術之名稱</th>
+                  <th>出版日期</th>
+                  <th>領域別</th>
+                  <th>屬性</th>
+                  <th>發布機構</th>
+                </tr>
+              </thead>
+              <tbody id="table-body">
+                <!-- Dynamically generated rows will go here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Analytics View (Charts Mode) -->
+        <div class="analytics-view-container hidden" id="analytics-view">
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3>🔩 技術與材料種類佔比</h3>
+              <div class="chart-wrapper">
+                <canvas id="chart-tech"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h3>🏳️ 各國政策數量分佈</h3>
+              <div class="chart-wrapper">
+                <canvas id="chart-countries"></canvas>
+              </div>
+            </div>
+            <div class="chart-card double-width">
+              <h3>⚡ 各領域別分佈統計</h3>
+              <div class="chart-wrapper">
+                <canvas id="chart-sectors"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -196,7 +262,7 @@
         <div class="detail-section highlight-blue">
           <h3>
             <span class="section-icon">🔩</span>
-            與金屬材料 / 製程關聯內容
+            關聯領域與材料技術
           </h3>
           <div class="section-content" id="modal-metal">
             <!-- Metal context -->
@@ -207,7 +273,7 @@
         <div class="detail-section highlight-purple">
           <h3>
             <span class="section-icon">🧪</span>
-            其他新興材料應用內容
+            詳細盤點與材料趨勢
           </h3>
           <div class="section-content" id="modal-emerging">
             <!-- Other materials context -->
