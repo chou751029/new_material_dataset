@@ -1055,3 +1055,72 @@ body {
   color: var(--primary-hover);
   transform: scale(1.1);
 }
+
+/* Sortable Headers */
+.policy-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+  position: relative;
+}
+.policy-table th.sortable:hover {
+  background-color: rgba(37, 99, 235, 0.05);
+}
+.sort-icon {
+  font-size: 0.8rem;
+  margin-left: 4px;
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+.sort-icon.active {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* Row selection highlighting */
+.policy-table tbody tr.selected-row {
+  background-color: rgba(37, 99, 235, 0.05) !important;
+}
+
+/* Columns Visibility Dropdown */
+.columns-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  width: 220px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+.columns-dropdown.hidden-popover {
+  display: none;
+}
+.columns-dropdown h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--text-main);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-bottom: 6px;
+}
+.columns-dropdown label {
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+.columns-dropdown label:hover {
+  color: var(--text-main);
+}
+.columns-dropdown input[type="checkbox"] {
+  cursor: pointer;
+}

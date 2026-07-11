@@ -36,10 +36,29 @@
             <p class="subtitle">創前計畫 • 整合產業政策、經濟安全與材料技術轉型趨勢</p>
           </div>
         </div>
-        <div class="header-actions">
+        <div class="header-actions" style="display: flex; gap: 8px;">
+          <!-- Column visibility dropdown -->
+          <div class="dropdown-columns-wrapper" style="position: relative;">
+            <button id="btn-toggle-columns" class="btn btn-outline">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+              <span>顯示欄位</span>
+            </button>
+            <div id="columns-dropdown" class="columns-dropdown hidden-popover card-glass">
+              <h4>選擇要顯示的欄位</h4>
+              <label><input type="checkbox" data-col-idx="1" checked> 國家</label>
+              <label><input type="checkbox" data-col-idx="2" checked> 政策/技術之名稱</label>
+              <label><input type="checkbox" data-col-idx="3" checked> 出版日期</label>
+              <label><input type="checkbox" data-col-idx="4" checked> 領域別</label>
+              <label><input type="checkbox" data-col-idx="5" checked> 屬性</label>
+              <label><input type="checkbox" data-col-idx="6" checked> 發布機構</label>
+              <label><input type="checkbox" data-col-idx="7" checked> 材料 / 製程技術</label>
+              <label><input type="checkbox" data-col-idx="8" checked> 材料 / 製程技術 名稱</label>
+              <label><input type="checkbox" data-col-idx="9" checked> 其他備註</label>
+            </div>
+          </div>
           <button id="btn-export" class="btn btn-outline">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>匯出 CSV 資料</span>
+            <span id="btn-export-text">匯出 CSV 資料</span>
           </button>
         </div>
       </div>
@@ -181,15 +200,16 @@
             <table class="policy-table">
               <thead>
                 <tr>
-                  <th>國家</th>
-                  <th>政策/技術之名稱</th>
-                  <th>出版日期</th>
-                  <th>領域別</th>
-                  <th>屬性</th>
-                  <th>發布機構</th>
-                  <th>材料 / 製程技術</th>
-                  <th>材料 / 製程技術 名稱</th>
-                  <th>其他備註</th>
+                  <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-rows" title="全選/取消全選"></th>
+                  <th data-column="country" class="sortable">國家 <span class="sort-icon" id="sort-country">⇅</span></th>
+                  <th data-column="name" class="sortable">政策/技術之名稱 <span class="sort-icon" id="sort-name">⇅</span></th>
+                  <th data-column="date" class="sortable">出版日期 <span class="sort-icon" id="sort-date">⇅</span></th>
+                  <th data-column="sector" class="sortable">領域別 <span class="sort-icon" id="sort-sector">⇅</span></th>
+                  <th data-column="attribute" class="sortable">屬性 <span class="sort-icon" id="sort-attribute">⇅</span></th>
+                  <th data-column="publisher" class="sortable">發布機構 <span class="sort-icon" id="sort-publisher">⇅</span></th>
+                  <th data-column="techAttribute" class="sortable">材料 / 製程技術 <span class="sort-icon" id="sort-techAttribute">⇅</span></th>
+                  <th data-column="techName" class="sortable">材料 / 製程技術 名稱 <span class="sort-icon" id="sort-techName">⇅</span></th>
+                  <th data-column="notes" class="sortable">其他備註 <span class="sort-icon" id="sort-notes">⇅</span></th>
                 </tr>
               </thead>
               <tbody id="table-body">

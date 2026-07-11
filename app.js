@@ -7,6 +7,13 @@ let filteredItems = [];      // Filtered technology records
 let policyItems = [];        // Policy master records (Sheet 2, gid=905656920)
 let filteredPolicyItems = [];// Filtered policy master records
 
+// Sorting state for List View
+let sortColumn = '';
+let sortDirection = ''; // 'asc' | 'desc' | ''
+
+// Selection state for List View
+let selectedRowIds = new Set();
+
 let activeFilters = {
   search: '',
   country: '',
@@ -106,6 +113,53 @@ function setupEventListeners() {
   btnReset.addEventListener('click', resetFilters);
   btnRetry.addEventListener('click', fetchData);
   btnExport.addEventListener('click', handleExport);
+
+  // Column visibility toggler
+  const btnToggleCols = document.getElementById('btn-toggle-columns');
+  const colsDropdown = document.getElementById('columns-dropdown');
+  if (btnToggleCols && colsDropdown) {
+    btnToggleCols.addEventListener('click', (e) => {
+      e.stopPropagation();
+      colsDropdown.classList.toggle('hidden-popover');
+    });
+    
+    // Close columns dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!colsDropdown.contains(e.target) && !btnToggleCols.contains(e.target)) {
+        colsDropdown.classList.add('hidden-popover');
+      }
+    });
+
+    // Checkbox changes inside dropdown
+    colsDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        updateColumnVisibility();
+      });
+    });
+  }
+
+  // Sortable header click handlers in list view
+  document.querySelectorAll('.policy-table th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const columnKey = th.dataset.column;
+      window.handleSort(columnKey);
+    });
+  });
+
+  // Checkbox row selection handlers
+  const selectAllRowsCb = document.getElementById('select-all-rows');
+  if (selectAllRowsCb) {
+    selectAllRowsCb.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      selectedRowIds.clear();
+      if (checked) {
+        filteredItems.forEach(item => {
+          selectedRowIds.add(item.id);
+        });
+      }
+      updateRowSelectionUI();
+    });
+  }
 
   // Modal close handlers
   btnCloseModal.addEventListener('click', () => {
@@ -438,7 +492,17 @@ function applyFilters() {
   });
 
   renderActiveTags();
+
+  // Clean up selected rows that are no longer in filtered items
+  const filteredIds = new Set(filteredItems.map(item => item.id));
+  selectedRowIds.forEach(id => {
+    if (!filteredIds.has(id)) {
+      selectedRowIds.delete(id);
+    }
+  });
+
   switchView(); // Refresh the current view layout & updateStats
+  updateRowSelectionUI();
 }
 
 // Render Active Filter Tags below inputs
@@ -582,9 +646,38 @@ function renderGrid() {
 function renderList() {
   tableBody.innerHTML = '';
 
-  filteredItems.forEach(item => {
+  let itemsToSort = [...filteredItems];
+
+  if (sortColumn && sortDirection) {
+    itemsToSort.sort((a, b) => {
+      let valA = a[sortColumn] || '';
+      let valB = b[sortColumn] || '';
+      
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  itemsToSort.forEach(item => {
     const tr = document.createElement('tr');
-    tr.addEventListener('click', () => openModal(item, 'tech'));
+    tr.dataset.id = item.id;
+    if (selectedRowIds.has(item.id)) {
+      tr.className = 'selected-row';
+    }
+
+    // Toggle modal click unless user clicked checkbox or button
+    tr.addEventListener('click', (e) => {
+      if (e.target.type === 'checkbox' || e.target.closest('button') || e.target.closest('a')) {
+        return;
+      }
+      openModal(item, 'tech');
+    });
+
+    const isChecked = selectedRowIds.has(item.id) ? 'checked' : '';
 
     const linkIconHTML = `
       <button class="btn-link-policy" onclick="event.stopPropagation(); window.viewPolicyDetail('${item.country}', '${item.name.replace(/'/g, "\\'")}')" title="查看政策總覽">
@@ -593,6 +686,7 @@ function renderList() {
     `;
     
     tr.innerHTML = `
+      <td style="text-align: center;"><input type="checkbox" class="row-selector" data-item-id="${item.id}" ${isChecked}></td>
       <td><strong>${item.country}</strong></td>
       <td><strong>${item.name}</strong>${linkIconHTML}</td>
       <td>${item.date || '無'}</td>
@@ -604,8 +698,26 @@ function renderList() {
       <td><span class="note-truncated" title="${item.notes || ''}">${item.notes || '—'}</span></td>
     `;
     
+    // Checkbox change listener
+    const cb = tr.querySelector('.row-selector');
+    cb.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      if (checked) {
+        selectedRowIds.add(item.id);
+        tr.classList.add('selected-row');
+      } else {
+        selectedRowIds.delete(item.id);
+        tr.classList.remove('selected-row');
+      }
+      updateRowSelectionUI();
+    });
+
     tableBody.appendChild(tr);
   });
+  
+  // Re-apply sorting header icons and column visibility
+  updateHeaderIndicators();
+  updateColumnVisibility();
 }
 
 // Render Policy Overview (Consolidated Mode) - Based on Policy Master rows (Sheet 2)
@@ -917,7 +1029,12 @@ function closeModal() {
 
 // Export Current Filtered items to Excel-compatible CSV matching Google Sheet columns A-I
 function handleExport() {
-  if (filteredItems.length === 0) {
+  // Determine which items to export
+  const exportItems = selectedRowIds.size > 0 
+    ? rawItems.filter(item => selectedRowIds.has(item.id))
+    : filteredItems;
+
+  if (exportItems.length === 0) {
     alert('目前沒有可以匯出的資料！');
     return;
   }
@@ -929,7 +1046,7 @@ function handleExport() {
   csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\n';
 
   // Data rows
-  filteredItems.forEach(item => {
+  exportItems.forEach(item => {
     const row = [
       item.country,
       item.name,
@@ -951,7 +1068,12 @@ function handleExport() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `各國政策與材料技術盤點匯出_${new Date().toISOString().slice(0,10)}.csv`);
+  
+  const filename = selectedRowIds.size > 0 
+    ? `各國政策與材料技術盤點匯出_選取項目_${new Date().toISOString().slice(0,10)}.csv`
+    : `各國政策與材料技術盤點匯出_${new Date().toISOString().slice(0,10)}.csv`;
+    
+  link.setAttribute("download", filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -985,3 +1107,98 @@ function showData() {
   loadingIndicator.classList.add('hidden');
   errorContainer.classList.add('hidden');
 }
+
+// Update check states and row highlight styling for row selection checkboxes
+function updateRowSelectionUI() {
+  const table = document.querySelector('.policy-table');
+  if (!table) return;
+
+  const selectAllRowsCb = document.getElementById('select-all-rows');
+  const checkboxes = table.querySelectorAll('tbody input[type="checkbox"]');
+  
+  checkboxes.forEach(cb => {
+    const id = parseInt(cb.dataset.itemId);
+    cb.checked = selectedRowIds.has(id);
+    
+    const tr = cb.closest('tr');
+    if (tr) {
+      if (cb.checked) {
+        tr.classList.add('selected-row');
+      } else {
+        tr.classList.remove('selected-row');
+      }
+    }
+  });
+
+  if (selectAllRowsCb) {
+    const allChecked = filteredItems.length > 0 && filteredItems.every(item => selectedRowIds.has(item.id));
+    selectAllRowsCb.checked = allChecked;
+    selectAllRowsCb.indeterminate = filteredItems.length > 0 && !allChecked && filteredItems.some(item => selectedRowIds.has(item.id));
+  }
+
+  const btnExportText = document.getElementById('btn-export-text');
+  if (btnExportText) {
+    if (selectedRowIds.size > 0) {
+      btnExportText.textContent = `匯出選取資料 (${selectedRowIds.size})`;
+    } else {
+      btnExportText.textContent = '匯出 CSV 資料';
+    }
+  }
+}
+
+// Update sorting indicator icons in table headers
+function updateHeaderIndicators() {
+  const headers = document.querySelectorAll('.policy-table th.sortable');
+  headers.forEach(th => {
+    const col = th.dataset.column;
+    const icon = th.querySelector('.sort-icon');
+    if (!icon) return;
+    
+    if (col === sortColumn) {
+      icon.classList.add('active');
+      icon.textContent = sortDirection === 'asc' ? '▲' : '▼';
+    } else {
+      icon.classList.remove('active');
+      icon.textContent = '⇅';
+    }
+  });
+}
+
+// Update visibility of columns dynamically based on checkboxes selector
+function updateColumnVisibility() {
+  const checkboxes = document.querySelectorAll('#columns-dropdown input[type="checkbox"]');
+  const table = document.querySelector('.policy-table');
+  if (!table) return;
+
+  checkboxes.forEach(cb => {
+    const colIdx = parseInt(cb.dataset.colIdx);
+    const checked = cb.checked;
+    
+    const th = table.querySelector(`thead th:nth-child(${colIdx + 1})`);
+    if (th) {
+      th.style.display = checked ? '' : 'none';
+    }
+    
+    const tds = table.querySelectorAll(`tbody tr td:nth-child(${colIdx + 1})`);
+    tds.forEach(td => {
+      td.style.display = checked ? '' : 'none';
+    });
+  });
+}
+
+// Sort handler registered globally
+window.handleSort = function(key) {
+  if (sortColumn === key) {
+    if (sortDirection === 'asc') {
+      sortDirection = 'desc';
+    } else {
+      sortColumn = '';
+      sortDirection = '';
+    }
+  } else {
+    sortColumn = key;
+    sortDirection = 'asc';
+  }
+  
+  renderList();
+};
