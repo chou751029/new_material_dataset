@@ -112,7 +112,20 @@
             </select>
           </div>
 
-          <div class="filter-grou      <!-- View Switcher -->
+          <div class="filter-group">
+            <label for="filter-publisher">發布機構</label>
+            <select id="filter-publisher">
+              <option value="">全部機構</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="active-filters" id="active-filters-container">
+          <!-- Active filter tags will be inserted here -->
+        </div>
+      </section>
+
+      <!-- View Switcher -->
       <div class="view-switcher-row">
         <div class="view-tabs">
           <button class="view-tab active" data-view="gallery">
@@ -213,26 +226,6 @@
             </div>
           </div>
         </div>
-      </section>��材料種類佔比</h3>
-              <div class="chart-wrapper">
-                <canvas id="chart-tech"></canvas>
-              </div>
-            </div>
-            <div class="chart-card">
-              <h3>🏳️ 各國政策數量分佈</h3>
-              <div class="chart-wrapper">
-                <canvas id="chart-countries"></canvas>
-              </div>
-            </div>
-            <div class="chart-card double-width">
-              <h3>⚡ 各領域別分佈統計</h3>
-              <div class="chart-wrapper">
-                <canvas id="chart-sectors"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
     </main>
 
