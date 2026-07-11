@@ -1124,3 +1124,14 @@ body {
 .columns-dropdown input[type="checkbox"] {
   cursor: pointer;
 }
+
+/* Highlight styling for key columns */
+.policy-table th.col-highlight {
+  background-color: rgba(37, 99, 235, 0.02) !important;
+  border-bottom: 2px solid var(--primary) !important;
+}
+.policy-table td.col-highlight {
+  font-weight: 500 !important;
+  color: var(--text-dark) !important;
+  background-color: rgba(37, 99, 235, 0.012) !important;
+}

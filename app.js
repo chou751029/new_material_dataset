@@ -330,13 +330,13 @@ function combineData() {
     const name = getCellVal(c, 1);
     if (!name) return null;
 
-    const date = getCellVal(c, 2);
-    const sector = getCellVal(c, 3);
-    const attribute = getCellVal(c, 4);
-    const publisher = getCellVal(c, 5);
-    const techAttribute = getCellVal(c, 6); // "材料 / 製程技術"
-    const techName = getCellVal(c, 7);      // "材料 / 製程技術 名稱"
-    const notes = getCellVal(c, 8);         // "其他備註"
+    const attribute = getCellVal(c, 2);     // "屬性" (Column C)
+    const sector = getCellVal(c, 3);        // "領域別" (Column D)
+    const techAttribute = getCellVal(c, 4); // "材料 / 製程技術" (Column E)
+    const techName = getCellVal(c, 5);      // "材料 / 製程技術 名稱" (Column F)
+    const notes = getCellVal(c, 6);         // "其他備註" (Column G)
+    const date = getCellVal(c, 7);          // "出版日期" (Column H)
+    const publisher = getCellVal(c, 8);     // "發布機構" (Column I)
 
     return {
       id: index,
@@ -689,13 +689,13 @@ function renderList() {
       <td style="text-align: center;"><input type="checkbox" class="row-selector" data-item-id="${item.id}" ${isChecked}></td>
       <td><strong>${item.country}</strong></td>
       <td><strong>${item.name}</strong>${linkIconHTML}</td>
-      <td>${item.date || '無'}</td>
-      <td>${item.sector ? `<span class="badge badge-sector">${item.sector}</span>` : '—'}</td>
       <td>${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : '—'}</td>
+      <td class="col-highlight">${item.sector ? `<span class="badge badge-sector">${item.sector}</span>` : '—'}</td>
+      <td class="col-highlight">${item.techAttribute ? `<span class="material-chip-summary ${item.techAttribute === '材料' ? 'metal' : 'emerging'}">${item.techAttribute === '材料' ? '🔩' : '⚙️'} ${item.techAttribute}</span>` : '—'}</td>
+      <td class="col-highlight">${item.techName || '—'}</td>
+      <td class="col-highlight"><span class="note-truncated" title="${item.notes || ''}">${item.notes || '—'}</span></td>
+      <td>${item.date || '無'}</td>
       <td>${item.publisher ? `<span class="badge badge-publisher">${item.publisher}</span>` : '—'}</td>
-      <td>${item.techAttribute ? `<span class="material-chip-summary ${item.techAttribute === '材料' ? 'metal' : 'emerging'}">${item.techAttribute === '材料' ? '🔩' : '⚙️'} ${item.techAttribute}</span>` : '—'}</td>
-      <td>${item.techName || '—'}</td>
-      <td><span class="note-truncated" title="${item.notes || ''}">${item.notes || '—'}</span></td>
     `;
     
     // Checkbox change listener
@@ -1039,7 +1039,7 @@ function handleExport() {
     return;
   }
 
-  const headers = ['國家', '政策/技術之名稱', '出版日期', '領域別', '屬性', '發布機構', '材料 / 製程技術', '材料 / 製程技術 名稱', '其他備註'];
+  const headers = ['國家', '政策/技術之名稱', '屬性', '領域別', '材料 / 製程技術', '材料 / 製程技術 名稱', '其他備註', '出版日期', '發布機構'];
   let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel compliance
 
   // Header row
@@ -1050,13 +1050,13 @@ function handleExport() {
     const row = [
       item.country,
       item.name,
-      item.date,
-      item.sector,
       item.attribute,
-      item.publisher,
+      item.sector,
       item.techAttribute,
       item.techName,
-      item.notes
+      item.notes,
+      item.date,
+      item.publisher
     ];
     csvContent += row.map(val => {
       const cleanVal = val ? val.replace(/"/g, '""') : '';

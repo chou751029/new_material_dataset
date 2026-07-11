@@ -47,13 +47,13 @@
               <h4>選擇要顯示的欄位</h4>
               <label><input type="checkbox" data-col-idx="1" checked> 國家</label>
               <label><input type="checkbox" data-col-idx="2" checked> 政策/技術之名稱</label>
-              <label><input type="checkbox" data-col-idx="3" checked> 出版日期</label>
+              <label><input type="checkbox" data-col-idx="3" checked> 屬性</label>
               <label><input type="checkbox" data-col-idx="4" checked> 領域別</label>
-              <label><input type="checkbox" data-col-idx="5" checked> 屬性</label>
-              <label><input type="checkbox" data-col-idx="6" checked> 發布機構</label>
-              <label><input type="checkbox" data-col-idx="7" checked> 材料 / 製程技術</label>
-              <label><input type="checkbox" data-col-idx="8" checked> 材料 / 製程技術 名稱</label>
-              <label><input type="checkbox" data-col-idx="9" checked> 其他備註</label>
+              <label><input type="checkbox" data-col-idx="5" checked> 材料 / 製程技術</label>
+              <label><input type="checkbox" data-col-idx="6" checked> 材料 / 製程技術 名稱</label>
+              <label><input type="checkbox" data-col-idx="7" checked> 其他備註</label>
+              <label><input type="checkbox" data-col-idx="8" checked> 出版日期</label>
+              <label><input type="checkbox" data-col-idx="9" checked> 發布機構</label>
             </div>
           </div>
           <button id="btn-export" class="btn btn-outline">
@@ -203,13 +203,13 @@
                   <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-rows" title="全選/取消全選"></th>
                   <th data-column="country" class="sortable">國家 <span class="sort-icon" id="sort-country">⇅</span></th>
                   <th data-column="name" class="sortable">政策/技術之名稱 <span class="sort-icon" id="sort-name">⇅</span></th>
-                  <th data-column="date" class="sortable">出版日期 <span class="sort-icon" id="sort-date">⇅</span></th>
-                  <th data-column="sector" class="sortable">領域別 <span class="sort-icon" id="sort-sector">⇅</span></th>
                   <th data-column="attribute" class="sortable">屬性 <span class="sort-icon" id="sort-attribute">⇅</span></th>
+                  <th data-column="sector" class="sortable col-highlight">領域別 <span class="sort-icon" id="sort-sector">⇅</span></th>
+                  <th data-column="techAttribute" class="sortable col-highlight">材料 / 製程技術 <span class="sort-icon" id="sort-techAttribute">⇅</span></th>
+                  <th data-column="techName" class="sortable col-highlight">材料 / 製程技術 名稱 <span class="sort-icon" id="sort-techName">⇅</span></th>
+                  <th data-column="notes" class="sortable col-highlight">其他備註 <span class="sort-icon" id="sort-notes">⇅</span></th>
+                  <th data-column="date" class="sortable">出版日期 <span class="sort-icon" id="sort-date">⇅</span></th>
                   <th data-column="publisher" class="sortable">發布機構 <span class="sort-icon" id="sort-publisher">⇅</span></th>
-                  <th data-column="techAttribute" class="sortable">材料 / 製程技術 <span class="sort-icon" id="sort-techAttribute">⇅</span></th>
-                  <th data-column="techName" class="sortable">材料 / 製程技術 名稱 <span class="sort-icon" id="sort-techName">⇅</span></th>
-                  <th data-column="notes" class="sortable">其他備註 <span class="sort-icon" id="sort-notes">⇅</span></th>
                 </tr>
               </thead>
               <tbody id="table-body">
