@@ -1033,3 +1033,25 @@ body {
     justify-content: center;
   }
 }
+
+/* Policy linking icon button style */
+.btn-link-policy {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all var(--transition-fast);
+}
+
+.btn-link-policy:hover {
+  background-color: rgba(37, 99, 235, 0.1);
+  color: var(--primary-hover);
+  transform: scale(1.1);
+}

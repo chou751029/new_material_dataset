@@ -544,6 +544,11 @@ function renderGrid() {
     card.addEventListener('click', () => openModal(item, 'tech'));
 
     const badgeCls = item.techAttribute === '材料' ? 'metal' : 'emerging';
+    const linkIconHTML = `
+      <button class="btn-link-policy" onclick="event.stopPropagation(); window.viewPolicyDetail('${item.country}', '${item.name.replace(/'/g, "\\'")}')" title="查看政策總覽">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </button>
+    `;
 
     card.innerHTML = `
       <div class="card-header">
@@ -554,7 +559,7 @@ function renderGrid() {
         </div>
         <span class="card-date">${item.date || '無日期'}</span>
       </div>
-      <h3>${item.name}</h3>
+      <h3>${item.name}${linkIconHTML}</h3>
       <div class="card-body" style="font-size: 0.9rem; color: #475569; display: flex; flex-direction: column; gap: 6px; margin: 12px 0;">
         <p><strong>🏢 發布機構：</strong>${item.publisher || '—'}</p>
         <p><strong>⚙️ 材料 / 製程技術：</strong><span class="material-chip-summary ${badgeCls}">${item.techAttribute === '材料' ? '🔩' : '⚙️'} ${item.techAttribute || '—'}</span></p>
@@ -580,10 +585,16 @@ function renderList() {
   filteredItems.forEach(item => {
     const tr = document.createElement('tr');
     tr.addEventListener('click', () => openModal(item, 'tech'));
+
+    const linkIconHTML = `
+      <button class="btn-link-policy" onclick="event.stopPropagation(); window.viewPolicyDetail('${item.country}', '${item.name.replace(/'/g, "\\'")}')" title="查看政策總覽">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </button>
+    `;
     
     tr.innerHTML = `
       <td><strong>${item.country}</strong></td>
-      <td><strong>${item.name}</strong></td>
+      <td><strong>${item.name}</strong>${linkIconHTML}</td>
       <td>${item.date || '無'}</td>
       <td>${item.sector ? `<span class="badge badge-sector">${item.sector}</span>` : '—'}</td>
       <td>${item.attribute ? `<span class="badge badge-attribute">${item.attribute}</span>` : '—'}</td>
@@ -771,6 +782,33 @@ function renderCharts() {
   });
 }
 
+// Link from technology records directly to the Policy Overview tab and open the specific policy modal
+window.viewPolicyDetail = function(country, name) {
+  const policy = policyItems.find(p => p.country === country && p.name === name);
+  if (policy) {
+    // 1. Switch active class on tabs
+    const tabs = document.querySelectorAll('.view-tab');
+    tabs.forEach(t => {
+      if (t.dataset.view === 'overview') {
+        t.classList.add('active');
+      } else {
+        t.classList.remove('active');
+      }
+    });
+
+    // 2. Set current view to overview and switch view
+    currentView = 'overview';
+    switchView();
+
+    // 3. Open the corresponding policy modal after a short delay for rendering
+    setTimeout(() => {
+      openModal(policy, 'policy');
+    }, 100);
+  } else {
+    alert('找不到對應的政策總覽資料！');
+  }
+};
+
 // Open Detail Dialog Modal
 function openModal(item, type = 'tech') {
   const modalTags = document.getElementById('modal-tags');
@@ -809,29 +847,20 @@ function openModal(item, type = 'tech') {
       ${item.sector ? `<span class="badge badge-sector">${item.sector}</span>` : ''}
     `;
 
+    // Only display 領域, 屬性, 材料/製程技術, 材料 / 製程技術名稱, and 其他備註 in the Description area
     modalDesc.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem;">
-        <p><strong>政策/技術之名稱：</strong>${item.name}</p>
-        <p><strong>領域別：</strong>${item.sector || '—'}</p>
+        <p><strong>領域：</strong>${item.sector || '—'}</p>
         <p><strong>屬性：</strong>${item.attribute || '—'}</p>
-        <p><strong>發布機構：</strong>${item.publisher || '—'}</p>
+        <p><strong>材料/製程技術：</strong>${item.techAttribute || '—'}</p>
+        <p><strong>材料 / 製程技術名稱：</strong>${item.techName || '—'}</p>
+        <p><strong>其他備註：</strong>${item.notes || '—'}</p>
       </div>
     `;
     
-    modalMetal.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem;">
-        <p><strong>⚙️ 材料 / 製程技術：</strong>${item.techAttribute || '—'}</p>
-        <p><strong>🧪 材料 / 製程技術 名稱：</strong>${item.techName || '—'}</p>
-      </div>
-    `;
-
-    if (item.notes && item.notes.trim()) {
-      modalEmerging.parentElement.classList.remove('hidden');
-      modalEmerging.parentElement.querySelector('h3').innerHTML = '<span class="section-icon">📑</span> 其他備註';
-      modalEmerging.textContent = item.notes;
-    } else {
-      modalEmerging.parentElement.classList.add('hidden');
-    }
+    // Hide metal and emerging detail sections for technology modal
+    modalMetal.parentElement.classList.add('hidden');
+    modalEmerging.parentElement.classList.add('hidden');
 
   } else if (type === 'policy') {
     // Populate for Policy Master Record (Sheet 2, gid=905656920)
